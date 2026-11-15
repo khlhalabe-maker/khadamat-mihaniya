@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خدمات مهنية - للربط بين المهنيين والزبائن</title>
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body { font-family: Tahoma, Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 15px; color: #333; }
+        .container { max-width: 600px; margin: auto; }
+        header { background: #1e3a8a; color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, select, textarea, button { width: 100%; padding: 10px; margin: 6px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
+        button { background: #1e3a8a; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #172554; }
+        .btn-whatsapp { background: #25D366; color: white; text-decoration: none; display: inline-block; text-align: center; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; box-sizing: border-box; margin-top: 8px; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; background: #cbd5e1; color: #1e293b; }
+        .tab-btn.active { background: #1e3a8a; color: white; }
+        .hidden { display: none; }
+        .badge { background: #e0e7ff; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>🛠️ خدمات مهنية</h2>
+        <p style="margin:0; font-size:14px;">منصة المناقصات والتواصل المباشر للمهن الحرة</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('tenders', this)">📋 المناقصات</button>
+        <button class="tab-btn" onclick="showTab('add-tender', this)">➕ نشر طلب</button>
+        <button class="tab-btn" onclick="showTab('register', this)">👤 تسجيل حساب</button>
+    </div>
+
+    <div id="tenders" class="tab-content">
+        <div id="tenders-list">جاري تحميل المناقصات...</div>
+    </div>
+
+    <div id="add-tender" class="tab-content hidden">
+        <div class="card">
+            <h3>نشر طلب عمل / مناقصة جديدة</h3>
+            <input type="text" id="t-title" placeholder="عنوان العمل (مثال: تمديد كهرباء شقة)">
+            <input type="text" id="t-city" placeholder="المدينة / المنطقة (مثال: دمشق، حلب...)">
+            <textarea id="t-desc" rows="3" placeholder="تفاصيل العمل المطلوب..."></textarea>
+            <input type="text" id="t-phone" placeholder="رقم الواتساب مع الرمز الدولي (مثال: 9639xxxxxxxx)">
+            <button onclick="addTender()">نشر المناقصة الآن</button>
+        </div>
+    </div>
+
+    <div id="register" class="tab-content hidden">
+        <div class="card">
+            <h3>تسجيل حساب جديد</h3>
+            <input type="text" id="u-name" placeholder="الاسم الكامل">
+            <select id="u-role">
+                <option value="professional">صاحب مهنة حرة (مهني)</option>
+                <option value="client">زبون (صاحب عمل)</option>
+            </select>
+            <input type="text" id="u-profession" placeholder="المهنة (في حال كنت مهنياً: نجار، حداد...)">
+            <input type="text" id="u-city" placeholder="المدينة">
+            <input type="text" id="u-phone" placeholder="رقم الواتساب (9639xxxxxxxx)">
+            <button onclick="registerUser()">حفظ البيانات</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_lybDIZJ3EhGn1jVwKVH_Gg_X0EEvw6p';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    function showTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.remove('hidden');
+        btn.classList.add('active');
+    }
+
+    async function loadTenders() {
+        const listDiv = document.getElementById('tenders-list');
+        const { data, error } = await supabaseClient.from('jobs_tenders').select('*').order('id', { ascending: false });
+        
+        if (error) {
+            listDiv.innerHTML = `<div class="card" style="color:red;">خطأ في الاتصال بقاعدة البيانات: ${error.message}</div>`;
+            return;
+        }
+        if (!data || data.length === 0) {
+            listDiv.innerHTML = `<div class="card">لا توجد مناقصات حالياً. كن أول من ينشر طلباً!</div>`;
+            return;
+        }
+
+        listDiv.innerHTML = data.map(item => `
+            <div class="card">
+                <span class="badge">${item.city || 'سوريا'}</span>
+                <h3 style="margin: 8px 0;">${item.title || 'بدون عنوان'}</h3>
+                <p style="font-size:14px; color:#555;">${item.description || ''}</p>
+                ${item.phone ? `<a class="btn-whatsapp" href="https://wa.me{item.phone.replace(/[^0-9]/g, '')}?text=مرحباً، بخصوص طلبك على منصة خدمات مهنية: ${encodeURIComponent(item.title)}" target="_blank">💬 تواصل عبر واتساب</a>` : ''}
+            </div>
+        `).join('');
+    }
+
+    async function addTender() {
+        const title = document.getElementById('t-title').value;
+        const city = document.getElementById('t-city').value;
+        const description = document.getElementById('t-desc').value;
+        const phone = document.getElementById('t-phone').value;
+
+        if (!title || !phone) return alert('يرجى إدخال عنوان العمل ورقم الواتساب');
+
+        const { error } = await supabaseClient.from('jobs_tenders').insert([{ title, city, description, phone }]);
+        if (error) {
+            alert('حدث خطأ: ' + error.message);
+        } else {
+            alert('تم نشر المناقصة بنجاح!');
+            location.reload();
+        }
+    }
+
+    async function registerUser() {
+        const name = document.getElementById('u-name').value;
+        const role = document.getElementById('u-role').value;
+        const profession = document.getElementById('u-profession').value;
+        const city = document.getElementById('u-city').value;
+        const phone = document.getElementById('u-phone').value;
+
+        if (!name || !phone) return alert('يرجى إدخال الاسم ورقم الواتساب');
+
+        const { error } = await supabaseClient.from('users').insert([{ name, role, profession, city, phone }]);
+        if (error) {
+            alert('حدث خطأ: ' + error.message);
+        } else {
+            alert('تم تسجيل حسابك بنجاح!');
+            location.reload();
+        }
+    }
+
+    loadTenders();
+</script>
+
+</body>
+</html>
